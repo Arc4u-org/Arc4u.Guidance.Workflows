@@ -1,18 +1,18 @@
 name: Build .NET Service
 
-on: 
+on:
   workflow_call:
     inputs:
       serviceName:
-        description: 'Name of the service'     
+        description: 'Name of the service'
         required: true
         type: string
       solutionName:
-        description: 'Name of the solution'     
+        description: 'Name of the solution'
         required: true
         type: string
       dotNet:
-        description: 'Version of the .Net runtime'     
+        description: 'Version of the .Net runtime'
         required: true
         type: string
       testFilter:
@@ -39,21 +39,25 @@ on:
         description: 'PAT for authenticating to the private NuGet feed'
         required: false
 
+permissions:
+  contents: read
+
 env:
-  hostRoot: './src/BE/${{ github.event.inputs.serviceName }}/${{ github.event.inputs.solutionName }}.${{ github.event.inputs.serviceName }}.Host'
-  host: './src/BE/${{ github.event.inputs.serviceName }}/${{ github.event.inputs.solutionName }}.${{ github.event.inputs.serviceName }}.Host/${{ github.event.inputs.solutionName }}.${{ github.event.inputs.serviceName }}.Host.csproj'
+  serviceRoot: './src/BE/Hosting/${{ inputs.serviceName }}'
+  hostRoot: './src/BE/Hosting/${{ inputs.serviceName }}/${{ inputs.solutionName }}.${{ inputs.serviceName }}.Host'
+  host: './src/BE/Hosting/${{ inputs.serviceName }}/${{ inputs.solutionName }}.${{ inputs.serviceName }}.Host/${{ inputs.solutionName }}.${{ inputs.serviceName }}.Host.csproj'
   buildPlatform: 'Any CPU'
-  buildConfiguration: 'Release'  
+  buildConfiguration: 'Release'
 
 jobs:
   build:
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v6
+      - uses: actions/checkout@v7
       - name: Setup dotnet
-        uses: actions/setup-dotnet@v5
+        uses: actions/setup-dotnet@v6
         with:
-           dotnet-version: ${{ github.event.inputs.dotNet }}
+           dotnet-version: ${{ inputs.dotNet }}
 
       - name: Register private NuGet source
         if: ${{ inputs.nuget-source-url != '' }}
@@ -64,45 +68,37 @@ jobs:
           username: ${{ inputs.nuget-username }}
           password: ${{ secrets.AUTH_NUGET_PASSWORD }}
 
-      - name: Echo testFilter
-        run: |
-          echo "testFilter parameter is set to : ${{ inputs.testFilter }}"
-
       - name: Run Test projects matching *UnitTest.csproj
-        if: inputs.testFilter == ''
+        env:
+          SERVICE_NAME: ${{ inputs.serviceName }}
+          TEST_FILTER: ${{ inputs.testFilter }}
         run: |
-            Get-ChildItem -Filter *.${{ inputs.serviceName }}.*UnitTest.csproj -Recurse | ForEach-Object { dotnet test $_.FullName -c ${{ env.buildConfiguration }}  }
-        shell: pwsh            
-
-      - name: Run Test projects matching *UnitTest.csproj with filter ${{ inputs.testFilter }}
-        if: inputs.testFilter != ''
-        run: |
-            Get-ChildItem -Filter *.${{ inputs.serviceName }}.*UnitTest.csproj -Recurse | ForEach-Object { dotnet test $_.FullName -c ${{ env.buildConfiguration }} --filter '${{ inputs.testFilter }}' }
-        shell: pwsh            
+            Write-Host "testFilter parameter is set to : $env:TEST_FILTER"
+            $filterArgs = if ($env:TEST_FILTER) { @('--filter', $env:TEST_FILTER) } else { @() }
+            $failed = 0
+            Get-ChildItem -Filter "*.$env:SERVICE_NAME.*UnitTest.csproj" -Recurse | ForEach-Object {
+              dotnet test $_.FullName -c $env:buildConfiguration @filterArgs
+              if ($LASTEXITCODE -ne 0) { $failed++ }
+            }
+            if ($failed -gt 0) { Write-Error "$failed test project(s) failed"; exit 1 }
+        shell: pwsh
 
       - name: Build
-        run: dotnet publish  ${{ env.host }}  --configuration ${{ env.buildConfiguration }} -o ./Service
+        run: dotnet publish "${{ env.host }}" --configuration ${{ env.buildConfiguration }} -o ./Service
 
-      - name: Substitue Dockerfile
-        uses: bluwy/substitute-string-action@v3
-        id: sub
+      - name: Create Dockerfile
+        uses: bluwy/substitute-string-action@v4
         with:
           _input-file: './src/BE/Dockerfile'
+          _output-file: './Dockerfile'
           _format-key: '%%key%%'
-          appName: ${{ github.event.inputs.solutionName }}.${{ github.event.inputs.serviceName }}.Host.dll
-      
-      - name: Create Dockerfile
-        uses: DamianReeves/write-file-action@v1.3
-        with:
-          path: ./Dockerfile
-          contents: ${{ steps.sub.outputs.result }}
-          write-mode: append
+          appName: ${{ inputs.solutionName }}.${{ inputs.serviceName }}.Host.dll
 
       - name: Copy deploy file
-        run: cp ./src/BE/${{ github.event.inputs.serviceName }}/deploy.yml ./deploy.yml  
+        run: cp "${{ env.serviceRoot }}/deploy.yml" ./deploy.yml
 
       - name: Save artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@v7
         with:
           name: artifact
           path: |
@@ -110,3 +106,4 @@ jobs:
             ./Dockerfile
             ./deploy.yml
           retention-days: 1
+          if-no-files-found: error
