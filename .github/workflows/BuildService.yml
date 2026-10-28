@@ -43,9 +43,9 @@ permissions:
   contents: read
 
 env:
-  serviceRoot: './src/BE/Hosting/${{ inputs.serviceName }}'
-  hostRoot: './src/BE/Hosting/${{ inputs.serviceName }}/${{ inputs.solutionName }}.${{ inputs.serviceName }}.Host'
-  host: './src/BE/Hosting/${{ inputs.serviceName }}/${{ inputs.solutionName }}.${{ inputs.serviceName }}.Host/${{ inputs.solutionName }}.${{ inputs.serviceName }}.Host.csproj'
+  serviceRoot: './src/BE/${{ inputs.serviceName }}/Hosting'
+  hostRoot: './src/BE/${{ inputs.serviceName }}/Hosting/${{ inputs.solutionName }}.${{ inputs.serviceName }}.Host'
+  host: './src/BE/${{ inputs.serviceName }}/Hosting/${{ inputs.solutionName }}.${{ inputs.serviceName }}.Host/${{ inputs.solutionName }}.${{ inputs.serviceName }}.Host.csproj'
   buildPlatform: 'Any CPU'
   buildConfiguration: 'Release'
 
