@@ -19,7 +19,7 @@ on:
         description: 'Environment Tag: Dev - Test - Acc - Prod'
         required: true
         type: string            
-      CR_Registry:
+      Registry:
         description: 'Name of the container registry'     
         required: true
         type: string
