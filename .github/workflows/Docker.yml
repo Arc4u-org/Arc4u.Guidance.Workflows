@@ -35,12 +35,12 @@ jobs:
     outputs:
      fullImagePath: ${{ steps.imageTag.outputs.fullImagePath }}
     steps:
-      - uses: actions/download-artifact@v7
+      - uses: actions/download-artifact@37930b1c2abaa49bbe596cd826c3c89aef350131 # v7.0.0
         with:
           name: artifact
 
       - name: Save artifacts
-        uses: actions/upload-artifact@v6
+        uses: actions/upload-artifact@b7c566a772e6b6bfb58ed0dc250532a479d7789f # v6.0.0
         with:
           name: configs
           path: |
@@ -52,24 +52,32 @@ jobs:
         run: rm -rf ./Service/Configs
   
       - name: Ensure DockerImage name is in lower case!
-        run: echo "DockerImage=$(echo ${{ inputs.DockerImage }} | tr '[:upper:]' '[:lower:]')" >> $GITHUB_OUTPUT
+        env:
+          DOCKER_IMAGE: ${{ inputs.DockerImage }}
+        run: echo "DockerImage=$(echo "$DOCKER_IMAGE" | tr '[:upper:]' '[:lower:]')" >> "$GITHUB_OUTPUT"
         id: DockerImageToLower
 
       - name: Login to ACR
-        uses: docker/login-action@v3
+        uses: docker/login-action@c94ce9fb468520275223c153574b00df6fe4bcc9 # v3.7.0
         with:
-          registry: ${{ inputs.CR_Registry }}
-          username: ${{ inputs.CR_User }}
+          registry: ${{ inputs.Registry }}
+          username: ${{ secrets.CR_User }}
           password: ${{ secrets.CR_Password }}
 
       - name: Build and publish the docker image.
+        env:
+          IMAGE_VERSION: ${{ format('{0}:{1}', steps.DockerImageToLower.outputs.DockerImage, inputs.DockerImageTagVersion) }}
         run: |
-          docker build ./Service -f ./Dockerfile -t ${{ format('{0}:{1}', steps.DockerImageToLower.outputs.DockerImage, inputs.DockerImageTagVersion) }}
-          docker push ${{ format('{0}:{1}', steps.DockerImageToLower.outputs.DockerImage, inputs.DockerImageTagVersion) }} 
+          docker build ./Service -f ./Dockerfile -t "$IMAGE_VERSION"
+          docker push "$IMAGE_VERSION"
 
       - name: Tag built container with Azure Container Registry url
-        run: docker tag ${{ format('{0}:{1}', steps.DockerImageToLower.outputs.DockerImage, inputs.DockerImageTagVersion) }} ${{ format('{0}:{1}', steps.DockerImageToLower.outputs.DockerImage, inputs.DockerEnvironmentTagVersion) }}
+        env:
+          IMAGE_VERSION: ${{ format('{0}:{1}', steps.DockerImageToLower.outputs.DockerImage, inputs.DockerImageTagVersion) }}
+          IMAGE_ENVIRONMENT: ${{ format('{0}:{1}', steps.DockerImageToLower.outputs.DockerImage, inputs.DockerEnvironmentTagVersion) }}
+        run: docker tag "$IMAGE_VERSION" "$IMAGE_ENVIRONMENT"
 
       - name: Push built container to Azure Container Registry
-        run: docker push ${{ format('{0}:{1}', steps.DockerImageToLower.outputs.DockerImage, inputs.DockerEnvironmentTagVersion) }}
-          
+        env:
+          IMAGE_ENVIRONMENT: ${{ format('{0}:{1}', steps.DockerImageToLower.outputs.DockerImage, inputs.DockerEnvironmentTagVersion) }}
+        run: docker push "$IMAGE_ENVIRONMENT"
