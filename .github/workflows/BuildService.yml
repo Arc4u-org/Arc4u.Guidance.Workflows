@@ -94,9 +94,6 @@ jobs:
           _format-key: '%%key%%'
           appName: ${{ inputs.solutionName }}.${{ inputs.serviceName }}.Host.dll
 
-      - name: Copy deploy file
-        run: cp "${{ env.serviceRoot }}/deploy.yml" ./deploy.yml
-
       - name: Save artifacts
         uses: actions/upload-artifact@v7
         with:
@@ -104,6 +101,5 @@ jobs:
           path: |
             ./Service
             ./Dockerfile
-            ./deploy.yml
           retention-days: 1
           if-no-files-found: error
