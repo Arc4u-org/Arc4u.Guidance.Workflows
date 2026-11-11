@@ -45,7 +45,6 @@ jobs:
           name: configs
           path: |
             ./Service/Configs
-            ./deploy.yml
           retention-days: 90
           
       - name: Remove Folder
