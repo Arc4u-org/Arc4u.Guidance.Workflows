@@ -19,6 +19,11 @@ on:
         description: 'Add a filter expression when running the unit test projects'
         required: true
         type: string
+      version:
+        description: 'Version stamped on the assemblies (-p:Version), e.g. 1.4.0 or 1.4.0-preview.1. Empty keeps the project version.'
+        required: false
+        type: string
+        default: ''
       nuget-source-url:
         description: 'URL of the private NuGet feed'
         required: false
@@ -84,7 +89,12 @@ jobs:
         shell: pwsh
 
       - name: Build
-        run: dotnet publish "${{ env.host }}" --configuration ${{ env.buildConfiguration }} -o ./Service
+        env:
+          VERSION: ${{ inputs.version }}
+        run: |
+          versionArgs=()
+          if [ -n "$VERSION" ]; then versionArgs=("-p:Version=$VERSION"); fi
+          dotnet publish "${{ env.host }}" --configuration ${{ env.buildConfiguration }} -o ./Service "${versionArgs[@]}"
 
       - name: Create Dockerfile
         uses: bluwy/substitute-string-action@v4
