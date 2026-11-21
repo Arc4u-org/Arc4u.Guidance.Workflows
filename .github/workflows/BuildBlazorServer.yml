@@ -15,10 +15,6 @@ on:
         description: 'Version of the .Net runtime'     
         required: true
         type: string
-      environment:
-          description: 'Define the  Environment: Prod, Acc, Test, Dev'     
-          required: true
-          type: string
       version:
         description: 'Version stamped on the assemblies (-p:Version), e.g. 1.4.0 or 1.4.0-preview.1. Empty keeps the project version.'
         required: false
